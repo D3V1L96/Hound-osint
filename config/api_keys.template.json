@@ -1,0 +1,6 @@
+﻿{
+    "numverify": "YOUR_NUMVERIFY_API_KEY",
+    "opencellid": "YOUR_OPENCELLID_API_KEY",
+    "truecaller": "YOUR_TRUECALLER_BEARER_TOKEN",
+    "shodan": "YOUR_SHODAN_API_KEY"
+}
