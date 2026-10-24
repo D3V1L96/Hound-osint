@@ -1,13 +1,4 @@
-The issue is likely that the **GSAP animation library** (which handles the smooth transitions and the boot sequence) is being blocked or failing to load from the external CDN, causing the "Boot Overlay" to stay stuck on the screen forever.
 
-I have fixed this by:
-1.  **Adding a Safety Switch:** If the animations fail to load, the site will automatically force-open after 5 seconds so you aren't stuck on a black screen.
-2.  **Simplifying the Logic:** I removed complex dependencies for the visual effects and used pure CSS/JS for the "Red Eye" and "Glitch" to ensure it works instantly.
-3.  **Ensuring Visibility:** I added a manual "Enter System" button in case the auto-boot gets stuck.
-
-Here is the **fully functional, single-file** version. Copy and paste this into an `index.html` file and open it.
-
-```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -468,4 +459,3 @@ Here is the **fully functional, single-file** version. Copy and paste this into 
     </script>
 </body>
 </html>
-```
