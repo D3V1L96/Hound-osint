@@ -1,0 +1,471 @@
+The issue is likely that the **GSAP animation library** (which handles the smooth transitions and the boot sequence) is being blocked or failing to load from the external CDN, causing the "Boot Overlay" to stay stuck on the screen forever.
+
+I have fixed this by:
+1.  **Adding a Safety Switch:** If the animations fail to load, the site will automatically force-open after 5 seconds so you aren't stuck on a black screen.
+2.  **Simplifying the Logic:** I removed complex dependencies for the visual effects and used pure CSS/JS for the "Red Eye" and "Glitch" to ensure it works instantly.
+3.  **Ensuring Visibility:** I added a manual "Enter System" button in case the auto-boot gets stuck.
+
+Here is the **fully functional, single-file** version. Copy and paste this into an `index.html` file and open it.
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HOUND v2.0 | COGNITIVE WEAPON</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- GSAP (With fallback logic below) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+    <style>
+        :root {
+            --bg-black: #050000;
+            --surface-dark: #0a0202;
+            --accent-red: #FF003C;
+            --accent-dim: #5c0016;
+            --text-white: #e0e0e0;
+            --text-gray: #666;
+        }
+
+        body {
+            background-color: var(--bg-black);
+            color: var(--text-white);
+            font-family: 'Space Grotesk', sans-serif;
+            overflow-x: hidden;
+            margin: 0;
+            cursor: crosshair;
+        }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* --- BOOT SEQUENCE --- */
+        #boot-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            transition: opacity 1s ease-out;
+        }
+
+        .terminal-text {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--accent-red);
+            font-size: 14px;
+            width: 100%;
+            max-width: 500px;
+            padding: 20px;
+            line-height: 1.6;
+            text-shadow: 0 0 5px var(--accent-red);
+        }
+
+        /* --- GLITCH EFFECT --- */
+        .glitch-wrapper { position: relative; display: inline-block; }
+        
+        .glitch-text {
+            position: relative;
+            color: var(--text-white);
+            font-weight: 800;
+            letter-spacing: -3px;
+            text-transform: uppercase;
+        }
+
+        .glitch-text::before, .glitch-text::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg-black);
+        }
+
+        .glitch-text::before {
+            left: 2px;
+            text-shadow: -2px 0 var(--accent-red);
+            clip: rect(24px, 550px, 90px, 0);
+            animation: glitch-anim-2 3s infinite linear alternate-reverse;
+        }
+
+        .glitch-text::after {
+            left: -2px;
+            text-shadow: -2px 0 #fff;
+            clip: rect(85px, 550px, 140px, 0);
+            animation: glitch-anim 2.5s infinite linear alternate-reverse;
+        }
+
+        @keyframes glitch-anim {
+            0% { clip: rect(14px, 9999px, 121px, 0); }
+            20% { clip: rect(80px, 9999px, 30px, 0); }
+            40% { clip: rect(30px, 9999px, 90px, 0); }
+            60% { clip: rect(60px, 9999px, 10px, 0); }
+            80% { clip: rect(100px, 9999px, 60px, 0); }
+            100% { clip: rect(10px, 9999px, 110px, 0); }
+        }
+        @keyframes glitch-anim-2 {
+            0% { clip: rect(60px, 9999px, 10px, 0); }
+            20% { clip: rect(10px, 9999px, 100px, 0); }
+            40% { clip: rect(90px, 9999px, 30px, 0); }
+            60% { clip: rect(20px, 9999px, 70px, 0); }
+            80% { clip: rect(110px, 9999px, 20px, 0); }
+            100% { clip: rect(40px, 9999px, 90px, 0); }
+        }
+
+        /* --- PROCEDURAL RED EYE --- */
+        .eye-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .eye-ring {
+            position: absolute;
+            border: 1px solid var(--accent-red);
+            border-radius: 50%;
+            box-shadow: 0 0 15px var(--accent-red), inset 0 0 15px var(--accent-red);
+            opacity: 0.6;
+        }
+
+        .ring-1 { width: 100%; height: 100%; animation: spin 10s linear infinite; border-style: dashed; }
+        .ring-2 { width: 70%; height: 70%; animation: spin-rev 8s linear infinite; border-width: 2px; }
+        .ring-3 { width: 40%; height: 40%; background: radial-gradient(circle, var(--accent-red) 0%, transparent 70%); opacity: 0.3; }
+        
+        .pupil {
+            width: 15%;
+            height: 15%;
+            background: var(--accent-red);
+            border-radius: 50%;
+            box-shadow: 0 0 30px var(--accent-red);
+            animation: pulse-eye 2s ease-in-out infinite;
+        }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        @keyframes spin-rev { 100% { transform: rotate(-360deg); } }
+        @keyframes pulse-eye {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 50px var(--accent-red); }
+        }
+
+        /* --- UI COMPONENTS --- */
+        .nav-scrolled {
+            background: rgba(5, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--accent-dim);
+        }
+
+        .glass-card {
+            background: rgba(10, 2, 2, 0.6);
+            backdrop-filter: blur(5px);
+            border: 1px solid var(--accent-dim);
+            transition: all 0.3s ease;
+        }
+
+        .glass-card:hover {
+            border-color: var(--accent-red);
+            box-shadow: 0 0 20px rgba(255, 0, 60, 0.2);
+            transform: translateY(-5px);
+        }
+
+        #network-canvas {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 0;
+            opacity: 0.3;
+        }
+
+        .scanline {
+            width: 100%; height: 100px; z-index: 10;
+            background: linear-gradient(0deg, rgba(0,0,0,0) 0%, rgba(255, 0, 60, 0.05) 50%, rgba(0,0,0,0) 100%);
+            opacity: 0.1; position: absolute; bottom: 100%;
+            animation: scanline 8s linear infinite; pointer-events: none;
+        }
+        @keyframes scanline { 0% { bottom: 100%; } 100% { bottom: -100%; } }
+    </style>
+</head>
+<body class="antialiased selection:bg-[#FF003C] selection:text-white">
+
+    <!-- BOOT SEQUENCE -->
+    <div id="boot-overlay">
+        <div class="eye-container mb-8" style="width: 60px; height: 60px;">
+            <div class="pupil"></div>
+        </div>
+        <div class="terminal-text" id="terminal-output">
+            <span class="animate-pulse">_</span>
+        </div>
+        <!-- Manual Fallback Button -->
+        <button onclick="forceEnter()" class="mt-8 px-6 py-2 border border-[#FF003C] text-[#FF003C] mono text-xs hover:bg-[#FF003C] hover:text-black transition-colors">
+            [ FORCE ENTER SYSTEM ]
+        </button>
+    </div>
+
+    <!-- MAIN INTERFACE -->
+    <main id="main-interface" class="opacity-0 transition-opacity duration-1000 relative">
+        <div class="scanline"></div>
+        
+        <!-- Navigation -->
+        <nav id="navbar" class="fixed w-full z-50 transition-all duration-300 py-6">
+            <div class="max-w-7xl mx-auto px-6 flex justify-between items-center">
+                <a href="#" class="flex items-center gap-3 group">
+                    <div class="w-3 h-3 bg-[#FF003C] rounded-full shadow-[0_0_10px_#FF003C] group-hover:animate-ping"></div>
+                    <span class="text-xl font-bold tracking-widest mono">HOUND <span class="text-[#FF003C] text-xs">v2.0</span></span>
+                </a>
+                
+                <div class="hidden md:flex items-center gap-8 text-sm font-medium text-[#666] mono">
+                    <a href="#overview" class="hover:text-[#FF003C] transition-colors">OVERVIEW</a>
+                    <a href="#features" class="hover:text-[#FF003C] transition-colors">CAPABILITIES</a>
+                    <a href="#architecture" class="hover:text-[#FF003C] transition-colors">ARCHITECTURE</a>
+                    <a href="https://github.com/D3V1L96/Hound-osint" target="_blank" class="px-5 py-2 border border-[#FF003C]/30 text-[#FF003C] hover:bg-[#FF003C]/10 rounded transition-all">INITIALIZE</a>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Hero Section -->
+        <header class="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
+            <canvas id="network-canvas"></canvas>
+            
+            <div class="relative z-10 max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center">
+                <!-- Left: Content -->
+                <div class="order-2 lg:order-1">
+                    <div class="mono text-[#FF003C] text-xs tracking-[0.4em] mb-6 border-l-2 border-[#FF003C] pl-4">AUTONOMOUS OSINT FRAMEWORK</div>
+                    
+                    <h1 class="text-6xl lg:text-8xl font-bold leading-none mb-8">
+                        <div class="glitch-wrapper">
+                            <span class="glitch-text" data-text="TRACK THE">TRACK THE</span>
+                        </div><br>
+                        <div class="glitch-wrapper">
+                            <span class="glitch-text" data-text="SIGNAL.">SIGNAL.</span>
+                        </div>
+                    </h1>
+                    
+                    <p class="text-[#666] text-lg mb-10 leading-relaxed max-w-lg border-l border-white/10 pl-6">
+                        An advanced, locally-executed cognitive weapon system. Hunt digital footprints and connect fragmented evidence through autonomous AI.
+                    </p>
+                    
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <a href="#overview" class="px-8 py-4 bg-[#FF003C] text-black font-bold mono hover:bg-white transition-colors rounded-sm text-center shadow-[0_0_20px_rgba(255,0,60,0.4)]">EXPLORE HOUND</a>
+                        <a href="https://github.com/D3V1L96/Hound-osint" target="_blank" class="px-8 py-4 border border-[#666]/30 text-[#e0e0e0] hover:border-[#FF003C] hover:text-[#FF003C] transition-colors rounded-sm mono text-center">VIEW SOURCE</a>
+                    </div>
+                </div>
+
+                <!-- Right: Procedural Red Eye -->
+                <div class="order-1 lg:order-2 flex justify-center">
+                    <div class="eye-container">
+                        <div class="eye-ring ring-1"></div>
+                        <div class="eye-ring ring-2"></div>
+                        <div class="eye-ring ring-3"></div>
+                        <div class="pupil"></div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Overview -->
+        <section id="overview" class="py-32 bg-[#050000] relative">
+            <div class="max-w-7xl mx-auto px-6">
+                <div class="border-l-2 border-[#FF003C] pl-8 mb-16">
+                    <h2 class="text-4xl font-bold mb-4">FROM FRAGMENTS TO <span class="text-[#FF003C]">INTELLIGENCE.</span></h2>
+                    <p class="text-[#666] max-w-2xl text-lg">Digital information is distributed. HOUND provides a modular workflow for collecting, organizing, and correlating authorized OSINT findings into a unified SQLite graph.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Grid -->
+        <section id="features" class="py-32 bg-[#080000]">
+            <div class="max-w-7xl mx-auto px-6">
+                <div class="grid md:grid-cols-3 gap-8">
+                    <div class="glass-card p-10 rounded-sm">
+                        <div class="text-[#FF003C] mb-6 mono text-xs tracking-widest">MODULE_01 // RECON</div>
+                        <h3 class="text-2xl font-bold mb-4 group-hover:text-[#FF003C] transition-colors">DNS Reconnaissance</h3>
+                        <p class="text-sm text-[#666] leading-relaxed">Aggressive subdomain enumeration, zone-transfer checks, and CNAME hijack detection.</p>
+                    </div>
+                    <div class="glass-card p-10 rounded-sm">
+                        <div class="text-[#FF003C] mb-6 mono text-xs tracking-widest">MODULE_02 // SOCIAL</div>
+                        <h3 class="text-2xl font-bold mb-4 group-hover:text-[#FF003C] transition-colors">Social Footprint</h3>
+                        <p class="text-sm text-[#666] leading-relaxed">Concurrent searches across 83 supported platforms with metadata extraction.</p>
+                    </div>
+                    <div class="glass-card p-10 rounded-sm">
+                        <div class="text-[#FF003C] mb-6 mono text-xs tracking-widest">MODULE_03 // AI</div>
+                        <h3 class="text-2xl font-bold mb-4 group-hover:text-[#FF003C] transition-colors">Local AI Analyst</h3>
+                        <p class="text-sm text-[#666] leading-relaxed">Ollama-powered analysis that synthesizes collected evidence into readable briefs.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Architecture -->
+        <section id="architecture" class="py-32 bg-[#050000] border-t border-[#FF003C]/10">
+            <div class="max-w-4xl mx-auto px-6 text-center">
+                <h2 class="text-3xl font-bold mb-16">INTELLIGENCE ENGINE</h2>
+                
+                <div class="mono text-sm space-y-4 max-w-lg mx-auto">
+                    <div class="p-4 border border-[#FF003C]/20 bg-[#0a0000] hover:border-[#FF003C] transition-colors cursor-default">CLI ENTRY POINT</div>
+                    <div class="text-[#FF003C]">↓</div>
+                    <div class="p-4 border border-[#FF003C]/20 bg-[#0a0000] hover:border-[#FF003C] transition-colors cursor-default">DATA COLLECTORS</div>
+                    <div class="text-[#FF003C]">↓</div>
+                    <div class="p-4 border border-[#FF003C]/20 bg-[#0a0000] hover:border-[#FF003C] transition-colors cursor-default">CORRELATION ENGINE</div>
+                    <div class="text-[#FF003C]">↓</div>
+                    <div class="p-4 border border-[#FF003C]/40 bg-[#0a0000] hover:border-[#FF003C] transition-colors cursor-default shadow-[0_0_20px_rgba(255,0,60,0.1)]">LOCAL AI ANALYST</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="bg-black py-12 border-t border-[#FF003C]/10">
+            <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+                <div class="text-left">
+                    <div class="text-lg font-bold mb-2 mono">HOUND v2.0</div>
+                    <p class="text-[#666] text-xs leading-relaxed max-w-xs">
+                        An OSINT research framework intended for lawful, authorized intelligence gathering.
+                    </p>
+                </div>
+                <div class="text-[#FF003C]/50 text-xs mono">
+                    &copy; 2026 TILAK KUMAR / D3V1L96 <br> BUILT IN THE DARK.
+                </div>
+            </div>
+        </footer>
+    </main>
+
+    <script>
+        // --- SAFETY FALLBACK ---
+        let bootComplete = false;
+        function forceEnter() {
+            if (bootComplete) return;
+            bootComplete = true;
+            const overlay = document.getElementById('boot-overlay');
+            const main = document.getElementById('main-interface');
+            overlay.style.opacity = '0';
+            setTimeout(() => {
+                overlay.style.display = 'none';
+                main.style.opacity = '1';
+                initCanvas(); // Start canvas manually if GSAP failed
+            }, 1000);
+        }
+
+        // Auto-failover after 5 seconds
+        setTimeout(forceEnter, 5000);
+
+        // --- BOOT SEQUENCE LOGIC ---
+        const terminal = document.getElementById('terminal-output');
+        const logs = [
+            "Initializing neural network... [OK]",
+            "Loading cybersecurity modules... [OK]",
+            "Mounting /dev/python3... [OK]",
+            "Attaching packet sniffer eth0... [OK]",
+            "Decrypting identity matrix... [OK]",
+            "Establishing secure uplink... [OK]",
+            "Scanning for threats... [NONE DETECTED]",
+            "Loading operator profile... [TILAK.KUMAR]",
+            "Syncing with GitHub API... [LIVE DATA]",
+            "SYSTEM NOMINAL. WELCOME BACK, OPERATOR."
+        ];
+
+        let logIndex = 0;
+
+        function typeLog() {
+            if (logIndex < logs.length) {
+                const line = document.createElement('div');
+                line.textContent = `> ${logs[logIndex]}`;
+                line.style.opacity = 0;
+                terminal.insertBefore(line, terminal.lastElementChild);
+                
+                // Simple fade in without GSAP dependency
+                setTimeout(() => { line.style.opacity = 1; }, 50);
+                
+                logIndex++;
+                setTimeout(typeLog, Math.random() * 300 + 100);
+            } else {
+                setTimeout(forceEnter, 1000);
+            }
+        }
+
+        // Start boot
+        setTimeout(typeLog, 500);
+
+        // --- CANVAS NETWORK ---
+        function initCanvas() {
+            const canvas = document.getElementById('network-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            let width, height;
+            let particles = [];
+
+            function resize() {
+                width = canvas.width = window.innerWidth;
+                height = canvas.height = window.innerHeight;
+            }
+            window.addEventListener('resize', resize);
+            resize();
+
+            class Particle {
+                constructor() {
+                    this.x = Math.random() * width;
+                    this.y = Math.random() * height;
+                    this.vx = (Math.random() - 0.5) * 0.5;
+                    this.vy = (Math.random() - 0.5) * 0.5;
+                    this.size = Math.random() * 2 + 1;
+                }
+                update() {
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    if (this.x < 0 || this.x > width) this.vx *= -1;
+                    if (this.y < 0 || this.y > height) this.vy *= -1;
+                }
+                draw() {
+                    ctx.fillStyle = '#FF003C';
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            for (let i = 0; i < 60; i++) particles.push(new Particle());
+
+            function animate() {
+                ctx.clearRect(0, 0, width, height);
+                for (let i = 0; i < particles.length; i++) {
+                    for (let j = i + 1; j < particles.length; j++) {
+                        const dx = particles[i].x - particles[j].x;
+                        const dy = particles[i].y - particles[j].y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist < 150) {
+                            ctx.strokeStyle = `rgba(255, 0, 60, ${1 - dist / 150})`;
+                            ctx.lineWidth = 0.5;
+                            ctx.beginPath();
+                            ctx.moveTo(particles[i].x, particles[i].y);
+                            ctx.lineTo(particles[j].x, particles[j].y);
+                            ctx.stroke();
+                        }
+                    }
+                    particles[i].update();
+                    particles[i].draw();
+                }
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        // Initialize canvas immediately
+        initCanvas();
+
+        // Navbar scroll effect
+        window.addEventListener('scroll', () => {
+            const nav = document.getElementById('navbar');
+            if (window.scrollY > 50) nav.classList.add('nav-scrolled');
+            else nav.classList.remove('nav-scrolled');
+        });
+    </script>
+</body>
+</html>
+```
