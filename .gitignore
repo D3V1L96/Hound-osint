@@ -31,3 +31,5 @@ hound_state.db
 
 # Keep config template
 !config/api_keys.template.json
+
+.env
